@@ -6,6 +6,62 @@ import pandas_datareader.data as web
 import scipy.stats as sci
 import yfinance as yf
 
+
+def d1(spot, strike, r, t, sigma, q):
+    return (log(spot / strike) + (r - q + sigma ** 2 / 2) * t) / (sigma * sqrt(t))
+
+
+def d2(spot, strike, r, t, sigma, q):
+    return d1(spot, strike, r, t, sigma, q) - sigma * sqrt(t)
+
+
+def call(spot, strike, r, t, sigma, q):
+    return cdf_d1 * spot * exp_div - cdf_d2 * strike * exp_r
+
+
+def put(spot, strike, r, t, sigma, q):
+    return exp_r * strike * cdf_negative_d2 - spot * exp_div * cdf_negative_d1
+
+
+# the sensitivity of an option’s price changes relative to the changes in the underlying asset’s price
+def call_delta(spot, strike, r, t, sigma, q):
+    return exp_div * cdf_d1
+
+
+def put_delta(spot, strike, r, t, sigma, q):
+    return exp_div * -cdf_negative_d1
+
+
+# the delta’s change relative to the changes in the price of the underlying asset
+def gamma(spot, strike, r, t, sigma, q):
+    return exp_div * pdf_d1 / (spot * sigma * sqrt(t))
+
+
+# the sensitivity of the option price relative to the option’s time to maturity
+def call_theta(spot, strike, r, t, sigma, q):
+    return (1 / 252) * ((-(spot * sigma * exp_div * pdf_d1 / (2 * sqrt(t)))) - r * strike * exp_r * cdf_d2
+                        + q * spot * exp_div * cdf_d1)
+
+
+def put_theta(spot, strike, r, t, sigma, q):
+    return (1 / 252) * ((-(spot * sigma * exp_div * pdf_d1 / (2 * sqrt(t)))) + r * strike * exp_r * cdf_d2
+                        - q * spot * exp_div * cdf_d1)
+
+
+# the sensitivity of an option price relative to the volatility of the underlying asset
+def vega(spot, strike, r, t, sigma, q):
+    return spot * exp_div * sqrt(t) * pdf_d1 * 0.01
+
+
+# the sensitivity of the option price relative to interest rates
+def call_rho(spot, strike, r, t, sigma, q):
+    return strike * t * exp_r * cdf_d2 * 0.01
+
+
+def put_rho(spot, strike, r, t, sigma, q):
+    return strike * t * exp_r * cdf_negative_d2 * -0.01
+
+
 stock = input("What is the stock code? ")
 expiry = input("When is the expiry date of the option?(In mm-dd-yyyy format) ")
 strike = int(input("What is the strike price? "))
@@ -31,67 +87,14 @@ try:
 except IndexError:
     q = 0
 
-
-def call(spot, strike, r, t, sigma, q):
-    return sci.norm.cdf(d1(spot, strike, r, t, sigma, q)) * spot * e ** (-q * t) - sci.norm.cdf(
-        d2(spot, strike, r, t, sigma, q)) * strike * (
-                   e ** (-r * t))
-
-
-def put(spot, strike, r, t, sigma, q):
-    return e ** (-r * t) * strike * sci.norm.cdf(-d2(spot, strike, r, t, sigma, q)) - spot * e ** (
-            -q * t) * sci.norm.cdf(-d1(spot, strike, r, t, sigma, q))
-
-
-def d1(spot, strike, r, t, sigma, q):
-    return (log(spot / strike) + (r - q + sigma ** 2 / 2) * t) / (sigma * sqrt(t))
-
-
-def d2(spot, strike, r, t, sigma, q):
-    return d1(spot, strike, r, t, sigma, q) - sigma * sqrt(t)
-
-
-# measures the rate of change of the theoretical option value with respect to changes in the underlying asset's price
-def call_delta(spot, strike, r, t, sigma, q):
-    return e ** (-q * t) * sci.norm.cdf(d1(spot, strike, r, t, sigma, q))
-
-
-def put_delta(spot, strike, r, t, sigma, q):
-    return e ** (-q * t) * -sci.norm.cdf(-d1(spot, strike, r, t, sigma, q))
-
-
-# measures the rate of change in the delta with respect to changes in the underlying price
-def gamma(spot, strike, r, t, sigma, q):
-    return e ** (-q * t) * sci.norm.pdf(d1(spot, strike, r, t, sigma, q)) / (
-            spot * sigma * sqrt(t))
-
-
-# measures the sensitivity of the value of the derivative to the passage of time
-def call_theta(spot, strike, r, t, sigma, q):
-    return (1 / 252) * ((-(spot * sigma * e ** (-q * t) * sci.norm.pdf(d1(spot, strike, r, t, sigma, q)) / (
-            2 * sqrt(t)))) - r * strike * e ** (-r * t) * sci.norm.cdf(
-        d2(spot, strike, r, t, sigma, q)) + q * spot * e ** (-q * t) * sci.norm.cdf(d1(spot, strike, r, t, sigma, q)))
-
-
-def put_theta(spot, strike, r, t, sigma, q):
-    return (1 / 252) * ((-(spot * sigma * e ** (-q * t) * sci.norm.pdf(d1(spot, strike, r, t, sigma, q)) / (
-            2 * sqrt(t)))) + r * strike * e ** (-r * t) * sci.norm.cdf(
-        d2(spot, strike, r, t, sigma, q)) - q * spot * e ** (-q * t) * sci.norm.cdf(d1(spot, strike, r, t, sigma, q)))
-
-
-# measures sensitivity to volatility
-def vega(spot, strike, r, t, sigma, q):
-    return spot * e ** (-q * t) * sqrt(t) * sci.norm.pdf(d1(spot, strike, r, t, sigma, q)) * 0.01
-
-
-# measures sensitivity to the interest rate
-def call_rho(spot, strike, r, t, sigma, q):
-    return strike * t * e ** (-r * t) * sci.norm.cdf(d2(spot, strike, r, t, sigma, q)) * 0.01
-
-
-def put_rho(spot, strike, r, t, sigma, q):
-    return strike * t * e ** (-r * t) * sci.norm.cdf(-d2(spot, strike, r, t, sigma, q)) * -0.01
-
+exp_div = e ** (-q * t)
+exp_r = e ** (-r * t)
+cdf_d1 = sci.norm.cdf(d1(spot, strike, r, t, sigma, q))
+cdf_d2 = sci.norm.cdf(d2(spot, strike, r, t, sigma, q))
+pdf_d1 = sci.norm.pdf(d1(spot, strike, r, t, sigma, q))
+pdf_d2 = sci.norm.pdf(d2(spot, strike, r, t, sigma, q))
+cdf_negative_d1 = sci.norm.cdf(-d1(spot, strike, r, t, sigma, q))
+cdf_negative_d2 = sci.norm.cdf(-d2(spot, strike, r, t, sigma, q))
 
 print("-------------------------------------------------------")
 print(f"Call Option Price: {call(spot, strike, r, t, sigma, q)}")
